@@ -22,6 +22,15 @@ public class StartReceive extends BroadcastReceiver {
 
     static boolean isBootCompleted = false; // 标志是否已经开机发送过通知
 
+    static boolean checkBatteryWhiteList(Context context) {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+            PowerManager powerManager = (PowerManager) context.getSystemService(POWER_SERVICE);
+            if (powerManager == null) return true;
+            return powerManager.isIgnoringBatteryOptimizations(context.getPackageName());
+        }
+        return true;
+    }
+
     @Override
     public void onReceive(Context context, Intent intent) {
         Log.d("StartReceive", "start");
@@ -40,14 +49,5 @@ public class StartReceive extends BroadcastReceiver {
             startActivityIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             context.startActivity(startActivityIntent);
         }
-    }
-
-    static boolean checkBatteryWhiteList(Context context) {
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
-            PowerManager powerManager = (PowerManager) context.getSystemService(POWER_SERVICE);
-            if (powerManager == null) return true;
-            return powerManager.isIgnoringBatteryOptimizations(context.getPackageName());
-        }
-        return true;
     }
 }

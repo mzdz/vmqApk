@@ -36,13 +36,77 @@ import okhttp3.Request;
 import okhttp3.Response;
 
 public class NeNotificationService2 extends NotificationListenerService {
+    public static boolean isRunning;
     private static String TAG = "NeNotificationService2";
     private final Handler handler = new Handler(Looper.getMainLooper());
     private String host = "";
     private String key = "";
     private Thread newThread = null;
     private PowerManager.WakeLock mWakeLock = null;
-    public static boolean isRunning;
+
+    /**
+     * 如果出现无法通知的情况，进入前台，然后主动打开通知
+     */
+    public static void enterForeground(Context context, String title, String text, String extra) {
+        if (context == null) return;
+        Log.i(TAG, "enter fore ground");
+        Intent intent = new Intent(context, ForegroundServer.class);
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        intent.putExtra(ForegroundServer.GET_NOTIFY_TITLE, title == null ? "" : title);
+        intent.putExtra(ForegroundServer.GET_NOTIFY_TEXT, text == null ? "" : text);
+        intent.putExtra(ForegroundServer.GET_NOTIFY_EXTRA, extra == null ? "" : extra);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            context.startForegroundService(intent);
+        } else {
+            context.startService(intent);
+        }
+    }
+
+    public static void exitForeground(Context context) {
+        if (context == null) return;
+        Log.i(TAG, "exitForeground");
+
+        Intent intent1 = new Intent();
+        intent1.setAction(Constant.FINISH_FOREGROUND_SERVICE);
+        context.sendBroadcast(intent1);
+    }
+
+    public static String getMoney(String content) {
+        List<String> ss = new ArrayList<>();
+        for (String sss : content.replaceAll(",", "")
+                .replaceAll("[^0-9.]", ",").split(",")) {
+            if (sss.length() > 0)
+                ss.add(sss);
+        }
+        if (ss.size() < 1) {
+            return null;
+        } else {
+            return ss.get(ss.size() - 1);
+        }
+    }
+
+    public static String md5(String string) {
+        if (TextUtils.isEmpty(string)) {
+            return "";
+        }
+        MessageDigest md5 = null;
+        try {
+            md5 = MessageDigest.getInstance("MD5");
+            byte[] bytes = md5.digest(string.getBytes());
+            StringBuilder result = new StringBuilder();
+            for (byte b : bytes) {
+                String temp = Integer.toHexString(b & 0xff);
+                if (temp.length() == 1) {
+                    temp = "0" + temp;
+                }
+                result.append(temp);
+            }
+            return result.toString();
+        } catch (NoSuchAlgorithmException e) {
+            e.printStackTrace();
+        }
+        return "";
+    }
 
     //申请设备电源锁
     @SuppressLint("InvalidWakeLockTag")
@@ -127,7 +191,6 @@ public class NeNotificationService2 extends NotificationListenerService {
         });
         newThread.start(); //启动线程
     }
-
 
     //当收到一条消息的时候回调，sbn是收到的消息
     @Override
@@ -366,70 +429,6 @@ public class NeNotificationService2 extends NotificationListenerService {
                 }
             });
         }
-    }
-
-    /**
-     * 如果出现无法通知的情况，进入前台，然后主动打开通知
-     */
-    public static void enterForeground(Context context, String title, String text, String extra) {
-        if (context == null) return;
-        Log.i(TAG, "enter fore ground");
-        Intent intent = new Intent(context, ForegroundServer.class);
-        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        intent.putExtra(ForegroundServer.GET_NOTIFY_TITLE, title == null ? "" : title);
-        intent.putExtra(ForegroundServer.GET_NOTIFY_TEXT, text == null ? "" : text);
-        intent.putExtra(ForegroundServer.GET_NOTIFY_EXTRA, extra == null ? "" : extra);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            context.startForegroundService(intent);
-        } else {
-            context.startService(intent);
-        }
-    }
-
-    public static void exitForeground(Context context) {
-        if (context == null) return;
-        Log.i(TAG, "exitForeground");
-
-        Intent intent1 = new Intent();
-        intent1.setAction(Constant.FINISH_FOREGROUND_SERVICE);
-        context.sendBroadcast(intent1);
-    }
-
-    public static String getMoney(String content) {
-        List<String> ss = new ArrayList<>();
-        for (String sss : content.replaceAll(",", "")
-                .replaceAll("[^0-9.]", ",").split(",")) {
-            if (sss.length() > 0)
-                ss.add(sss);
-        }
-        if (ss.size() < 1) {
-            return null;
-        } else {
-            return ss.get(ss.size() - 1);
-        }
-    }
-
-    public static String md5(String string) {
-        if (TextUtils.isEmpty(string)) {
-            return "";
-        }
-        MessageDigest md5 = null;
-        try {
-            md5 = MessageDigest.getInstance("MD5");
-            byte[] bytes = md5.digest(string.getBytes());
-            StringBuilder result = new StringBuilder();
-            for (byte b : bytes) {
-                String temp = Integer.toHexString(b & 0xff);
-                if (temp.length() == 1) {
-                    temp = "0" + temp;
-                }
-                result.append(temp);
-            }
-            return result.toString();
-        } catch (NoSuchAlgorithmException e) {
-            e.printStackTrace();
-        }
-        return "";
     }
 
 }

@@ -44,16 +44,37 @@ import okhttp3.Response;
 
 public class MainActivity extends AppCompatActivity {
 
-    private final Handler handler = new Handler(Looper.getMainLooper());
-    private TextView txthost;
-    private TextView txtkey;
-
-    private boolean isOk = false;
     private static String TAG = "MainActivity";
-
     private static String host;
     private static String key;
+    private final Handler handler = new Handler(Looper.getMainLooper());
     int id = 0;
+    private TextView txthost;
+    private TextView txtkey;
+    private boolean isOk = false;
+
+    public static String md5(String string) {
+        if (TextUtils.isEmpty(string)) {
+            return "";
+        }
+        MessageDigest md5 = null;
+        try {
+            md5 = MessageDigest.getInstance("MD5");
+            byte[] bytes = md5.digest(string.getBytes());
+            StringBuilder result = new StringBuilder();
+            for (byte b : bytes) {
+                String temp = Integer.toHexString(b & 0xff);
+                if (temp.length() == 1) {
+                    temp = "0" + temp;
+                }
+                result.append(temp);
+            }
+            return result.toString();
+        } catch (NoSuchAlgorithmException e) {
+            e.printStackTrace();
+        }
+        return "";
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -293,29 +314,6 @@ public class MainActivity extends AppCompatActivity {
             e.printStackTrace();
             return false;
         }
-    }
-
-    public static String md5(String string) {
-        if (TextUtils.isEmpty(string)) {
-            return "";
-        }
-        MessageDigest md5 = null;
-        try {
-            md5 = MessageDigest.getInstance("MD5");
-            byte[] bytes = md5.digest(string.getBytes());
-            StringBuilder result = new StringBuilder();
-            for (byte b : bytes) {
-                String temp = Integer.toHexString(b & 0xff);
-                if (temp.length() == 1) {
-                    temp = "0" + temp;
-                }
-                result.append(temp);
-            }
-            return result.toString();
-        } catch (NoSuchAlgorithmException e) {
-            e.printStackTrace();
-        }
-        return "";
     }
 
     @Override

@@ -21,9 +21,6 @@ import android.widget.Button;
 import android.widget.ImageButton;
 import android.widget.Toast;
 
-import com.vone.qrcode.R;
-import com.vone.vmq.util.BitmapUtil;
-import com.vone.vmq.util.Constant;
 import com.google.zxing.BarcodeFormat;
 import com.google.zxing.BinaryBitmap;
 import com.google.zxing.ChecksumException;
@@ -38,6 +35,9 @@ import com.google.zxing.decoding.InactivityTimer;
 import com.google.zxing.decoding.RGBLuminanceSource;
 import com.google.zxing.qrcode.QRCodeReader;
 import com.google.zxing.view.ViewfinderView;
+import com.vone.qrcode.R;
+import com.vone.vmq.util.BitmapUtil;
+import com.vone.vmq.util.Constant;
 
 import java.io.IOException;
 import java.util.Hashtable;
@@ -52,25 +52,69 @@ import java.util.Vector;
 public class CaptureActivity extends AppCompatActivity implements Callback {
 
     private static final int REQUEST_CODE_SCAN_GALLERY = 100;
-
+    private static final float BEEP_VOLUME = 0.10f;
+    private static final long VIBRATE_DURATION = 200L;
+    /**
+     * When the beep has finished playing, rewind to queue up another one.
+     */
+    private final OnCompletionListener beepListener = new OnCompletionListener() {
+        public void onCompletion(MediaPlayer mediaPlayer) {
+            mediaPlayer.seekTo(0);
+        }
+    };
     private CaptureActivityHandler handler;
     private ViewfinderView viewfinderView;
     private ImageButton back;
     private ImageButton btnFlash;
     private Button btnAlbum; // 相册
     private boolean isFlashOn = false;
+    /**
+     * 闪光灯开关按钮
+     */
+    private final View.OnClickListener flashListener = new View.OnClickListener() {
+        @Override
+        public void onClick(View view) {
+            try {
+                boolean isSuccess = CameraManager.get().setFlashLight(!isFlashOn);
+                if (!isSuccess) {
+                    Toast.makeText(CaptureActivity.this, "暂时无法开启闪光灯", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                if (isFlashOn) {
+                    // 关闭闪光灯
+                    btnFlash.setImageResource(R.drawable.flash_off);
+                    isFlashOn = false;
+                } else {
+                    // 开启闪光灯
+                    btnFlash.setImageResource(R.drawable.flash_on);
+                    isFlashOn = true;
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+    };
     private boolean hasSurface;
     private Vector<BarcodeFormat> decodeFormats;
     private String characterSet;
     private InactivityTimer inactivityTimer;
     private MediaPlayer mediaPlayer;
     private boolean playBeep;
-    private static final float BEEP_VOLUME = 0.10f;
     private boolean vibrate;
+    //	private Button cancelScanButton;
     private ProgressDialog mProgress;
     private String photo_path;
     private Bitmap scanBitmap;
-    //	private Button cancelScanButton;
+    private View.OnClickListener albumOnClick = new View.OnClickListener() {
+        @Override
+        public void onClick(View view) {
+            //打开手机中的相册
+            Intent innerIntent = new Intent(Intent.ACTION_GET_CONTENT); //"android.intent.action.GET_CONTENT"
+            innerIntent.setType("image/*");
+            startActivityForResult(innerIntent, REQUEST_CODE_SCAN_GALLERY);
+        }
+    };
+
     /**
      * Called when the activity is first created.
      */
@@ -101,20 +145,9 @@ public class CaptureActivity extends AppCompatActivity implements Callback {
 
     }
 
-    private View.OnClickListener albumOnClick = new View.OnClickListener() {
-        @Override
-        public void onClick(View view) {
-            //打开手机中的相册
-            Intent innerIntent = new Intent(Intent.ACTION_GET_CONTENT); //"android.intent.action.GET_CONTENT"
-            innerIntent.setType("image/*");
-            startActivityForResult(innerIntent, REQUEST_CODE_SCAN_GALLERY);
-        }
-    };
-
-
     @Override
     protected void onActivityResult(final int requestCode, int resultCode, Intent data) {
-        if (resultCode==RESULT_OK) {
+        if (resultCode == RESULT_OK) {
             switch (requestCode) {
                 case REQUEST_CODE_SCAN_GALLERY:
                     handleAlbumPic(data);
@@ -126,6 +159,7 @@ public class CaptureActivity extends AppCompatActivity implements Callback {
 
     /**
      * 处理选择的图片
+     *
      * @param data
      */
     private void handleAlbumPic(Intent data) {
@@ -145,7 +179,7 @@ public class CaptureActivity extends AppCompatActivity implements Callback {
                 if (result != null) {
                     Intent resultIntent = new Intent();
                     Bundle bundle = new Bundle();
-                    bundle.putString(Constant.INTENT_EXTRA_KEY_QR_SCAN ,result.getText());
+                    bundle.putString(Constant.INTENT_EXTRA_KEY_QR_SCAN, result.getText());
 
                     resultIntent.putExtras(bundle);
                     CaptureActivity.this.setResult(RESULT_OK, resultIntent);
@@ -159,6 +193,7 @@ public class CaptureActivity extends AppCompatActivity implements Callback {
 
     /**
      * 扫描二维码图片的方法
+     *
      * @param uri
      * @return
      */
@@ -175,11 +210,7 @@ public class CaptureActivity extends AppCompatActivity implements Callback {
         QRCodeReader reader = new QRCodeReader();
         try {
             return reader.decode(bitmap1, hints);
-        } catch (NotFoundException e) {
-            e.printStackTrace();
-        } catch (ChecksumException e) {
-            e.printStackTrace();
-        } catch (FormatException e) {
+        } catch (NotFoundException | ChecksumException | FormatException e) {
             e.printStackTrace();
         }
         return null;
@@ -263,9 +294,7 @@ public class CaptureActivity extends AppCompatActivity implements Callback {
     private void initCamera(SurfaceHolder surfaceHolder) {
         try {
             CameraManager.get().openDriver(surfaceHolder);
-        } catch (IOException ioe) {
-            return;
-        } catch (RuntimeException e) {
+        } catch (IOException | RuntimeException ioe) {
             return;
         }
         if (handler == null) {
@@ -332,8 +361,6 @@ public class CaptureActivity extends AppCompatActivity implements Callback {
         }
     }
 
-    private static final long VIBRATE_DURATION = 200L;
-
     private void playBeepSoundAndVibrate() {
         if (playBeep && mediaPlayer != null) {
             mediaPlayer.start();
@@ -343,40 +370,4 @@ public class CaptureActivity extends AppCompatActivity implements Callback {
             vibrator.vibrate(VIBRATE_DURATION);
         }
     }
-
-    /**
-     * When the beep has finished playing, rewind to queue up another one.
-     */
-    private final OnCompletionListener beepListener = new OnCompletionListener() {
-        public void onCompletion(MediaPlayer mediaPlayer) {
-            mediaPlayer.seekTo(0);
-        }
-    };
-
-    /**
-     *  闪光灯开关按钮
-     */
-    private View.OnClickListener flashListener = new View.OnClickListener() {
-        @Override
-        public void onClick(View view) {
-            try {
-                boolean isSuccess = CameraManager.get().setFlashLight(!isFlashOn);
-                if(!isSuccess){
-                    Toast.makeText(CaptureActivity.this, "暂时无法开启闪光灯", Toast.LENGTH_SHORT).show();
-                    return;
-                }
-                if (isFlashOn) {
-                    // 关闭闪光灯
-                    btnFlash.setImageResource(R.drawable.flash_off);
-                    isFlashOn = false;
-                } else {
-                    // 开启闪光灯
-                    btnFlash.setImageResource(R.drawable.flash_on);
-                    isFlashOn = true;
-                }
-            }catch (Exception e){
-                e.printStackTrace();
-            }
-        }
-    };
 }

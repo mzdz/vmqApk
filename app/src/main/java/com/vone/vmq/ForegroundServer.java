@@ -45,8 +45,33 @@ public class ForegroundServer extends Service {
 
     private final long MIN_SHOW_TIME = 2000;
     private final long MAX_SHOW_TIME = 20000;
-
+    private final Runnable stopServerRunnable = new Runnable() {
+        @Override
+        public void run() {
+            try {
+                finishLockActivity();
+                Intent intent1 = new Intent(App.getContext(), ForegroundServer.class);
+                stopService(intent1);
+            } catch (Exception ignore) {
+            }
+        }
+    };
     private long enterTime;
+    private final BroadcastReceiver finishServiceBroadcast = new BroadcastReceiver() {
+
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if (Constant.FINISH_FOREGROUND_SERVICE.equals(intent.getAction())) {
+                long temp = SystemClock.elapsedRealtime() - enterTime;
+                handler.removeCallbacks(stopServerRunnable);
+                if (temp > MIN_SHOW_TIME) {
+                    handler.post(stopServerRunnable);
+                } else {
+                    handler.postDelayed(stopServerRunnable, MIN_SHOW_TIME - temp);
+                }
+            }
+        }
+    };
 
     @Override
     public void onCreate() {
@@ -216,34 +241,6 @@ public class ForegroundServer extends Service {
         } catch (Exception ignore) {
         }
     }
-
-    private final Runnable stopServerRunnable = new Runnable() {
-        @Override
-        public void run() {
-            try {
-                finishLockActivity();
-                Intent intent1 = new Intent(App.getContext(), ForegroundServer.class);
-                stopService(intent1);
-            } catch (Exception ignore) {
-            }
-        }
-    };
-
-    private final BroadcastReceiver finishServiceBroadcast = new BroadcastReceiver() {
-
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            if (Constant.FINISH_FOREGROUND_SERVICE.equals(intent.getAction())) {
-                long temp = SystemClock.elapsedRealtime() - enterTime;
-                handler.removeCallbacks(stopServerRunnable);
-                if (temp > MIN_SHOW_TIME) {
-                    handler.post(stopServerRunnable);
-                } else {
-                    handler.postDelayed(stopServerRunnable, MIN_SHOW_TIME - temp);
-                }
-            }
-        }
-    };
 
     private void startLockActivity(String msg) {
         Intent intent = new Intent(this, LockShowActivity.class);
